@@ -6,6 +6,7 @@ import ctypes
 import psutil
 import threading
 from pynput import keyboard
+from playsound import playsound
 import pystray
 from pystray import MenuItem as item
 from PIL import Image
@@ -17,6 +18,11 @@ current_keys = set()
 def get_icon_path():
     base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, "Gameshotter.ico")
+
+def play_sound(filename):
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(base, filename)
+    threading.Thread(target=lambda: playsound(path), daemon=True).start()
 
 def get_active_window_title():
     hwnd = ctypes.windll.user32.GetForegroundWindow()
@@ -46,6 +52,7 @@ def take_screenshot():
         monitor = sct.monitors[0]
         screenshot = sct.grab(monitor)
         mss.tools.to_png(screenshot.rgb, screenshot.size, output=filepath)
+        play_sound("gameshotter manual.wav")
     return filepath
 
 def exit_app(icon, item):
@@ -74,6 +81,7 @@ def start_tray():
     tray_icon.run()
 
 os.makedirs(save_dir, exist_ok=True)
+play_sound("gameshotter intro.wav")
 
 tray_thread = threading.Thread(target=start_tray, daemon=True)
 tray_thread.start()
