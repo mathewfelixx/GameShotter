@@ -13,6 +13,10 @@ from PIL import Image
 
 save_dir = os.path.join(os.path.expanduser("~"), "Pictures", "GameShots")
 
+AUTO_INTERVAL = 30
+
+auto_mode = False
+auto_timer = None
 current_keys = set()
 
 def get_icon_path():
@@ -42,18 +46,49 @@ def get_next_index_in(subfolder, window_name, ext):
     existing = [f for f in os.listdir(subfolder) if f.startswith(prefix) and f.endswith(f".{ext}")]
     return len(existing) + 1
 
-def take_screenshot():
-    title = sanitise(get_active_window_title())
+def take_screenshot(auto=False, window_title=None):
+    title = sanitise(window_title or get_active_window_title())
     app_folder = os.path.join(save_dir, title)
     os.makedirs(app_folder, exist_ok=True)
-    index = get_next_index_in(app_folder, title, "png")
-    filepath = os.path.join(app_folder, f"{title}-{index}.png")
+
+    if auto:
+        subfolder = os.path.join(app_folder, "auto")
+    else:
+        subfolder = app_folder
+
+    os.makedirs(subfolder, exist_ok=True)
+
+    index = get_next_index_in(subfolder, title, "png")
+    filepath = os.path.join(subfolder, f"{title}-{index}.png")
+
     with mss.mss() as sct:
         monitor = sct.monitors[0]
         screenshot = sct.grab(monitor)
         mss.tools.to_png(screenshot.rgb, screenshot.size, output=filepath)
-        play_sound("gameshotter manual.wav")
+        if not auto:
+            play_sound("gameshotter manual.wav")
+
     return filepath
+
+def auto_loop():
+    global auto_timer
+    if not auto_mode:
+        return
+    take_screenshot(auto=True)
+    auto_timer = threading.Timer(AUTO_INTERVAL, auto_loop)
+    auto_timer.start()
+
+def toggle_auto():
+    global auto_mode, auto_timer
+    auto_mode = not auto_mode
+    if auto_mode:
+        play_sound("gameshotter auto mode start.wav")
+        auto_loop()
+    else:
+        if auto_timer:
+            auto_timer.cancel()
+            auto_timer = None
+        play_sound("gameshotter auto mode stop.wav")
 
 def exit_app(icon, item):
     icon.stop()
@@ -66,6 +101,8 @@ def on_press(key):
         exit_app(tray_icon, None)
     elif key == keyboard.Key.f12:
         take_screenshot()
+    elif key == keyboard.Key.f6:
+        toggle_auto()
 
 def on_release(key):
     current_keys.discard(key)
