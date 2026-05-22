@@ -5,6 +5,7 @@ import sys
 import ctypes
 import psutil
 import threading
+import time
 from pynput import keyboard
 from playsound import playsound
 import pystray
@@ -14,10 +15,16 @@ from PIL import Image
 save_dir = os.path.join(os.path.expanduser("~"), "Pictures", "GameShots")
 
 AUTO_INTERVAL = 30
+AUTO_FOCUS_HOLD_SECONDS = 3
 
 auto_mode = False
 auto_timer = None
 current_keys = set()
+
+auto_target_window = None
+focus_window = None
+focus_since = 0.0
+focus_thread = None
 
 def get_icon_path():
     base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
@@ -70,24 +77,40 @@ def take_screenshot(auto=False, window_title=None):
 
     return filepath
 
+def focus_tracker():
+    global focus_window, focus_since
+    last_title = None
+    while auto_mode:
+        title = get_active_window_title()
+        if title != last_title:
+            last_title = title
+            focus_window = title
+            focus_since = time.time()
+        time.sleep(1)
+
 def auto_loop():
     global auto_timer
     if not auto_mode:
         return
-    take_screenshot(auto=True)
+    if focus_window == auto_target_window and (time.time() - focus_since) >= AUTO_FOCUS_HOLD_SECONDS:
+        take_screenshot(auto=True, window_title=auto_target_window)
     auto_timer = threading.Timer(AUTO_INTERVAL, auto_loop)
     auto_timer.start()
 
 def toggle_auto():
-    global auto_mode, auto_timer
+    global auto_mode, auto_timer, auto_target_window, focus_thread
     auto_mode = not auto_mode
     if auto_mode:
+        auto_target_window = get_active_window_title()
         play_sound("gameshotter auto mode start.wav")
+        focus_thread = threading.Thread(target=focus_tracker, daemon=True)
+        focus_thread.start()
         auto_loop()
     else:
         if auto_timer:
             auto_timer.cancel()
             auto_timer = None
+        auto_target_window = None
         play_sound("gameshotter auto mode stop.wav")
 
 def exit_app(icon, item):
