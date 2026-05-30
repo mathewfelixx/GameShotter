@@ -16,6 +16,8 @@ save_dir = os.path.join(os.path.expanduser("~"), "Pictures", "GameShots")
 
 AUTO_INTERVAL = 30
 AUTO_FOCUS_HOLD_SECONDS = 3
+AUTO_MAX_SHOTS = 0
+AUTO_MAX_DISK_MB = 0
 
 auto_mode = False
 auto_timer = None
@@ -25,6 +27,9 @@ auto_target_window = None
 focus_window = None
 focus_since = 0.0
 focus_thread = None
+
+auto_shot_count = 0
+auto_bytes_written = 0
 
 def get_icon_path():
     base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
@@ -89,19 +94,32 @@ def focus_tracker():
         time.sleep(1)
 
 def auto_loop():
-    global auto_timer
+    global auto_timer, auto_shot_count, auto_bytes_written
     if not auto_mode:
         return
+
     if focus_window == auto_target_window and (time.time() - focus_since) >= AUTO_FOCUS_HOLD_SECONDS:
-        take_screenshot(auto=True, window_title=auto_target_window)
+        filepath = take_screenshot(auto=True, window_title=auto_target_window)
+        auto_shot_count += 1
+        auto_bytes_written += os.path.getsize(filepath)
+
+        hit_shot_cap = AUTO_MAX_SHOTS and auto_shot_count >= AUTO_MAX_SHOTS
+        hit_disk_cap = AUTO_MAX_DISK_MB and auto_bytes_written >= AUTO_MAX_DISK_MB * 1024 * 1024
+        if hit_shot_cap or hit_disk_cap:
+            toggle_auto()
+            return
+
     auto_timer = threading.Timer(AUTO_INTERVAL, auto_loop)
     auto_timer.start()
 
 def toggle_auto():
     global auto_mode, auto_timer, auto_target_window, focus_thread
+    global auto_shot_count, auto_bytes_written
     auto_mode = not auto_mode
     if auto_mode:
         auto_target_window = get_active_window_title()
+        auto_shot_count = 0
+        auto_bytes_written = 0
         play_sound("gameshotter auto mode start.wav")
         focus_thread = threading.Thread(target=focus_tracker, daemon=True)
         focus_thread.start()
