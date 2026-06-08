@@ -12,12 +12,9 @@ import pystray
 from pystray import MenuItem as item
 from PIL import Image
 
-save_dir = os.path.join(os.path.expanduser("~"), "Pictures", "GameShots")
+import config
 
-AUTO_INTERVAL = 30
-AUTO_FOCUS_HOLD_SECONDS = 3
-AUTO_MAX_SHOTS = 0
-AUTO_MAX_DISK_MB = 0
+settings = config.load_config()
 
 auto_mode = False
 auto_timer = None
@@ -60,7 +57,7 @@ def get_next_index_in(subfolder, window_name, ext):
 
 def take_screenshot(auto=False, window_title=None):
     title = sanitise(window_title or get_active_window_title())
-    app_folder = os.path.join(save_dir, title)
+    app_folder = os.path.join(settings["save_dir"], title)
     os.makedirs(app_folder, exist_ok=True)
 
     if auto:
@@ -98,18 +95,21 @@ def auto_loop():
     if not auto_mode:
         return
 
-    if focus_window == auto_target_window and (time.time() - focus_since) >= AUTO_FOCUS_HOLD_SECONDS:
+    hold_needed = settings["auto_focus_hold_seconds"]
+    if focus_window == auto_target_window and (time.time() - focus_since) >= hold_needed:
         filepath = take_screenshot(auto=True, window_title=auto_target_window)
         auto_shot_count += 1
         auto_bytes_written += os.path.getsize(filepath)
 
-        hit_shot_cap = AUTO_MAX_SHOTS and auto_shot_count >= AUTO_MAX_SHOTS
-        hit_disk_cap = AUTO_MAX_DISK_MB and auto_bytes_written >= AUTO_MAX_DISK_MB * 1024 * 1024
+        max_shots = settings["auto_max_shots"]
+        max_disk_mb = settings["auto_max_disk_mb"]
+        hit_shot_cap = max_shots and auto_shot_count >= max_shots
+        hit_disk_cap = max_disk_mb and auto_bytes_written >= max_disk_mb * 1024 * 1024
         if hit_shot_cap or hit_disk_cap:
             toggle_auto()
             return
 
-    auto_timer = threading.Timer(AUTO_INTERVAL, auto_loop)
+    auto_timer = threading.Timer(settings["auto_interval"], auto_loop)
     auto_timer.start()
 
 def toggle_auto():
@@ -135,14 +135,21 @@ def exit_app(icon, item):
     icon.stop()
     os._exit(0)
 
+def key_name(key):
+    if isinstance(key, keyboard.KeyCode):
+        return None
+    return key.name
+
 def on_press(key):
     current_keys.add(key)
+    pressed = key_name(key)
     ctrl_held = keyboard.Key.ctrl_l in current_keys or keyboard.Key.ctrl_r in current_keys
-    if ctrl_held and key == keyboard.Key.f12:
+
+    if ctrl_held and pressed == "f12":
         exit_app(tray_icon, None)
-    elif key == keyboard.Key.f12:
-        take_screenshot()
-    elif key == keyboard.Key.f6:
+    elif pressed == settings["hotkey_manual"]:
+        take_screenshot(auto=False)
+    elif pressed == settings["hotkey_auto_toggle"]:
         toggle_auto()
 
 def on_release(key):
@@ -158,7 +165,7 @@ def start_tray():
     tray_icon = pystray.Icon("GameShotter", image, "GameShotter", menu)
     tray_icon.run()
 
-os.makedirs(save_dir, exist_ok=True)
+os.makedirs(settings["save_dir"], exist_ok=True)
 play_sound("gameshotter intro.wav")
 
 tray_thread = threading.Thread(target=start_tray, daemon=True)
