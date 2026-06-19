@@ -13,6 +13,7 @@ from pystray import MenuItem as item
 from PIL import Image
 
 import config
+from gui import open_settings_window
 
 settings = config.load_config()
 
@@ -131,6 +132,14 @@ def toggle_auto():
         auto_target_window = None
         play_sound("gameshotter auto mode stop.wav")
 
+def open_settings(icon, item):
+    threading.Thread(target=open_settings_window, args=(settings, apply_settings), daemon=True).start()
+
+def apply_settings(new_settings):
+    os.makedirs(new_settings["save_dir"], exist_ok=True)
+    settings.update(new_settings)
+    config.save_config(settings)
+
 def exit_app(icon, item):
     icon.stop()
     os._exit(0)
@@ -160,6 +169,7 @@ def start_tray():
     image = Image.open(get_icon_path())
     menu = pystray.Menu(
         item("GameShotter V1", lambda: None, enabled=False),
+        item("Settings", open_settings),
         item("Exit", exit_app)
     )
     tray_icon = pystray.Icon("GameShotter", image, "GameShotter", menu)
