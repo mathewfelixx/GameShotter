@@ -14,6 +14,7 @@ DEFAULTS = {
     "auto_focus_hold_seconds": 3,
     "auto_max_shots": 0,
     "auto_max_disk_mb": 0,
+    "image_format": "png",
 }
 
 
@@ -40,6 +41,9 @@ def validate_config(cfg):
 
     if isinstance(cfg.get("auto_max_disk_mb"), (int, float)) and 0 <= cfg["auto_max_disk_mb"] <= 1000000:
         valid["auto_max_disk_mb"] = cfg["auto_max_disk_mb"]
+
+    if cfg.get("image_format") in ("png", "jpeg"):
+        valid["image_format"] = cfg["image_format"]
 
     return valid
 

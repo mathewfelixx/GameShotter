@@ -56,6 +56,13 @@ def get_next_index_in(subfolder, window_name, ext):
     existing = [f for f in os.listdir(subfolder) if f.startswith(prefix) and f.endswith(f".{ext}")]
     return len(existing) + 1
 
+def save_screenshot(screenshot, filepath):
+    if settings["image_format"] == "jpeg":
+        img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
+        img.save(filepath, "JPEG", quality=90)
+    else:
+        mss.tools.to_png(screenshot.rgb, screenshot.size, output=filepath)
+
 def take_screenshot(auto=False, window_title=None):
     title = sanitise(window_title or get_active_window_title())
     app_folder = os.path.join(settings["save_dir"], title)
@@ -68,13 +75,15 @@ def take_screenshot(auto=False, window_title=None):
 
     os.makedirs(subfolder, exist_ok=True)
 
-    index = get_next_index_in(subfolder, title, "png")
-    filepath = os.path.join(subfolder, f"{title}-{index}.png")
+    ext = "jpg" if settings["image_format"] == "jpeg" else "png"
+    index = get_next_index_in(subfolder, title, ext)
+    filename = f"{title}-{index}.{ext}"
+    filepath = os.path.join(subfolder, filename)
 
     with mss.mss() as sct:
         monitor = sct.monitors[0]
         screenshot = sct.grab(monitor)
-        mss.tools.to_png(screenshot.rgb, screenshot.size, output=filepath)
+        save_screenshot(screenshot, filepath)
         if not auto:
             play_sound("gameshotter manual.wav")
 
