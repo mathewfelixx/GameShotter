@@ -148,6 +148,7 @@ def apply_settings(new_settings):
     os.makedirs(new_settings["save_dir"], exist_ok=True)
     settings.update(new_settings)
     config.save_config(settings)
+    config.set_start_with_windows(settings["start_with_windows"])
 
 def exit_app(icon, item):
     icon.stop()

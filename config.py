@@ -1,8 +1,13 @@
 import json
 import os
+import sys
+import winreg
 
 CONFIG_DIR = os.path.join(os.getenv("APPDATA"), "GameShotter")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "settings.json")
+
+RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+RUN_NAME = "GameShotter"
 
 FKEYS = [f"f{i}" for i in range(1, 13)]
 
@@ -15,6 +20,7 @@ DEFAULTS = {
     "auto_max_shots": 0,
     "auto_max_disk_mb": 0,
     "image_format": "png",
+    "start_with_windows": False,
 }
 
 
@@ -45,6 +51,9 @@ def validate_config(cfg):
     if cfg.get("image_format") in ("png", "jpeg"):
         valid["image_format"] = cfg["image_format"]
 
+    if isinstance(cfg.get("start_with_windows"), bool):
+        valid["start_with_windows"] = cfg["start_with_windows"]
+
     return valid
 
 
@@ -63,3 +72,16 @@ def save_config(cfg):
     os.makedirs(CONFIG_DIR, exist_ok=True)
     with open(CONFIG_PATH, "w") as f:
         json.dump(cfg, f, indent=2)
+
+
+def set_start_with_windows(enabled):
+    launch_target = sys.executable if getattr(sys, "frozen", False) else \
+        f'"{sys.executable}" "{os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")}"'
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
+        if enabled:
+            winreg.SetValueEx(key, RUN_NAME, 0, winreg.REG_SZ, launch_target)
+        else:
+            try:
+                winreg.DeleteValue(key, RUN_NAME)
+            except FileNotFoundError:
+                pass
