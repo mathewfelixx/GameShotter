@@ -21,7 +21,9 @@ auto_mode = False
 auto_timer = None
 current_keys = set()
 
+# window the auto-mode is locked onto (set when f6 is pressed)
 auto_target_window = None
+# whatever window is actually focused right now, and since when
 focus_window = None
 focus_since = 0.0
 focus_thread = None
@@ -34,6 +36,8 @@ def get_icon_path():
     return os.path.join(base, "Gameshotter.ico")
 
 def play_sound(filename):
+    if not settings["sound_enabled"]:
+        return
     base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     path = os.path.join(base, filename)
     threading.Thread(target=lambda: playsound(path), daemon=True).start()
@@ -57,6 +61,7 @@ def get_next_index_in(subfolder, window_name, ext):
     return len(existing) + 1
 
 def save_screenshot(screenshot, filepath):
+    # writes the grabbed frame out in whichever format the settings ask for
     if settings["image_format"] == "jpeg":
         img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
         img.save(filepath, "JPEG", quality=90)
@@ -90,6 +95,7 @@ def take_screenshot(auto=False, window_title=None):
     return filepath
 
 def focus_tracker():
+    # runs while auto-mode is on, keeps track of which window is focused and for how long
     global focus_window, focus_since
     last_title = None
     while auto_mode:
@@ -141,6 +147,10 @@ def toggle_auto():
         auto_target_window = None
         play_sound("gameshotter auto mode stop.wav")
 
+def exit_app(icon, item):
+    icon.stop()
+    os._exit(0)
+
 def open_settings(icon, item):
     threading.Thread(target=open_settings_window, args=(settings, apply_settings), daemon=True).start()
 
@@ -149,10 +159,6 @@ def apply_settings(new_settings):
     settings.update(new_settings)
     config.save_config(settings)
     config.set_start_with_windows(settings["start_with_windows"])
-
-def exit_app(icon, item):
-    icon.stop()
-    os._exit(0)
 
 def key_name(key):
     if isinstance(key, keyboard.KeyCode):

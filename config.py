@@ -20,11 +20,13 @@ DEFAULTS = {
     "auto_max_shots": 0,
     "auto_max_disk_mb": 0,
     "image_format": "png",
+    "sound_enabled": True,
     "start_with_windows": False,
 }
 
 
 def validate_config(cfg):
+    # checks each saved setting is sane, falls back to the default if not
     valid = DEFAULTS.copy()
 
     if isinstance(cfg.get("save_dir"), str) and cfg["save_dir"].strip():
@@ -50,6 +52,9 @@ def validate_config(cfg):
 
     if cfg.get("image_format") in ("png", "jpeg"):
         valid["image_format"] = cfg["image_format"]
+
+    if isinstance(cfg.get("sound_enabled"), bool):
+        valid["sound_enabled"] = cfg["sound_enabled"]
 
     if isinstance(cfg.get("start_with_windows"), bool):
         valid["start_with_windows"] = cfg["start_with_windows"]
